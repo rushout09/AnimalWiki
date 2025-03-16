@@ -1,4 +1,4 @@
-package com.example.animal_identifier
+package info.animalidentifier
 
 import io.flutter.embedding.android.FlutterActivity
 
