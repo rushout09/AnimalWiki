@@ -21,8 +21,6 @@ Future<void> main() async {
     print('Environment variables loaded successfully');
   } catch (e) {
     print('Failed to load environment variables: $e');
-    // Provide a fallback with the API key directly in code
-    dotenv.env['GEMINI_API_KEY'] = 'AIzaSyA4SoDN2lAF4zjOUYmkr0QPfDrtrEe22ek';
   }
   
   runApp(MyApp());
