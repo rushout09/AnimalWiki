@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'dart:io';
 import '../utils/theme.dart';
 import '../widgets/animated_gradient_button.dart';
+import '../services/payment_service.dart';
 import 'camera_screen.dart';
+import 'credits_screen.dart'; // Import the credits screen
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    // Get the payment service to access credits
+    final paymentService = Provider.of<PaymentService>(context);
+    
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: Stack(
@@ -50,41 +56,48 @@ class HomeScreen extends StatelessWidget {
                   children: [
                     SizedBox(height: AppTheme.spacingHuge),
                     
-                    // App title/branding
+                    // App title/branding and credits button
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Container(
-                          padding: EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.pets,
-                            color: AppTheme.primary,
-                            size: 28,
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Row(
                           children: [
-                            Text(
-                              'Animal',
-                              style: AppTheme.textTheme.displayMedium?.copyWith(
-                                color: AppTheme.textDark,
-                                fontWeight: FontWeight.w800,
+                            Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.pets,
+                                color: AppTheme.primary,
+                                size: 28,
                               ),
                             ),
-                            Text(
-                              'Identifier',
-                              style: AppTheme.textTheme.headlineSmall?.copyWith(
-                                color: AppTheme.textLight,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Animal',
+                                  style: AppTheme.textTheme.displayMedium?.copyWith(
+                                    color: AppTheme.textDark,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                Text(
+                                  'Identifier',
+                                  style: AppTheme.textTheme.headlineSmall?.copyWith(
+                                    color: AppTheme.textLight,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
+                        // Credits counter button
+                        _buildCreditsButton(context, paymentService),
                       ],
                     ),
                     
@@ -112,7 +125,7 @@ class HomeScreen extends StatelessWidget {
                     AnimatedGradientButton(
                       text: 'Take a Photo',
                       icon: Icons.camera_alt_rounded,
-                      onPressed: () => _pickImage(context, ImageSource.camera),
+                      onPressed: () => _pickImage(context, ImageSource.camera, paymentService),
                       isFullWidth: true,
                       gradient: LinearGradient(
                         colors: [AppTheme.primary, Color(0xFF16DB93)],
@@ -125,13 +138,18 @@ class HomeScreen extends StatelessWidget {
                     
                     // Secondary action
                     OutlinedButton.icon(
-                      onPressed: () => _pickImage(context, ImageSource.gallery),
+                      onPressed: () => _pickImage(context, ImageSource.gallery, paymentService),
                       icon: Icon(Icons.photo_library_rounded),
                       label: Text('Choose from Gallery'),
                       style: OutlinedButton.styleFrom(
                         minimumSize: Size(double.infinity, 58),
                       ),
                     ),
+                    
+                    SizedBox(height: AppTheme.spacingMedium),
+                    
+                    // Buy credits button
+                    _buildBuyCreditsButton(context),
                     
                     SizedBox(height: AppTheme.spacingExtraLarge * 2),
                     
@@ -183,6 +201,68 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  // Credits display button
+  Widget _buildCreditsButton(BuildContext context, PaymentService paymentService) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => CreditsScreen()),
+        );
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppTheme.secondary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: paymentService.credits > 0 ? Colors.green : Colors.amber,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.monetization_on,
+              color: paymentService.credits > 0 ? Colors.green : Colors.amber,
+              size: 20,
+            ),
+            SizedBox(width: 6),
+            Text(
+              '${paymentService.credits}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: paymentService.credits > 0 ? Colors.green : Colors.amber,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Buy credits button
+  Widget _buildBuyCreditsButton(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => CreditsScreen()),
+        );
+      },
+      icon: Icon(
+        Icons.monetization_on,
+        color: Colors.amber,
+      ),
+      label: Text('Buy Credits'),
+      style: OutlinedButton.styleFrom(
+        minimumSize: Size(double.infinity, 58),
+        side: BorderSide(color: Colors.amber),
+      ),
+    );
+  }
+
   Widget _buildInfoRow({
     required IconData icon,
     required String title,
@@ -227,7 +307,38 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  void _pickImage(BuildContext context, ImageSource source) async {
+  void _pickImage(BuildContext context, ImageSource source, PaymentService paymentService) async {
+    // Check if user has enough credits
+    if (paymentService.credits <= 0) {
+      // Show dialog to buy credits
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('No Credits Available'),
+          content: Text(
+            'You need at least 1 credit to identify an animal. Would you like to purchase credits now?'
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Later'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context, 
+                  MaterialPageRoute(builder: (context) => CreditsScreen())
+                );
+              },
+              child: Text('Buy Credits'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    
     final ImagePicker picker = ImagePicker();
     final XFile? pickedFile = await picker.pickImage(
       source: source,
@@ -237,6 +348,9 @@ class HomeScreen extends StatelessWidget {
     );
 
     if (pickedFile != null) {
+      // Use 1 credit when starting the identification
+      await paymentService.useCredits(1);
+      
       Navigator.push(
         context,
         MaterialPageRoute(
