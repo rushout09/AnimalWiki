@@ -5,4 +5,4 @@
 .idea/
 android/app/.cxx/
 build/
-
+.DS_Store
