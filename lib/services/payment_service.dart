@@ -9,27 +9,34 @@ import 'package:shared_preferences/shared_preferences.dart';
 class PaymentService with ChangeNotifier {
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
-  
+
   // Credit pack product IDs
   static const String _credits10PackId = 'animal_identifier_10_credits';
   static const String _credits50PackId = 'animal_identifier_50_credits';
   static const String _credits100PackId = 'animal_identifier_100_credits';
-  
+
+  // Referral code
+  static const String _referralCode = "review2025";
+  static const int _referralCredits = 5;
+
   List<ProductDetails> _products = [];
   List<PurchaseDetails> _purchases = [];
-  
+
   bool _isAvailable = false;
   bool _purchasePending = false;
   bool _loading = true;
   String? _queryProductError;
-  
-  // Current credits balance
+
+
   int _credits = 0;
-  
+
+  // Track redeemed referral codes
+  Set<String> _redeemedCodes = {};
+
   // Use a separate flag for forced debug mode (for emulator testing only)
   // IMPORTANT: Set this to FALSE before real device testing or production!
   final bool _forceDebugMode = false;
-  
+
   // Calculated debug mode - true only when in development AND forced debug is on
   bool get _debugMode => kDebugMode && _forceDebugMode;
 
@@ -44,28 +51,38 @@ class PaymentService with ChangeNotifier {
   PaymentService() {
     // Load credits balance from shared preferences
     _loadCredits();
-    
-    final Stream<List<PurchaseDetails>> purchaseUpdated = 
+
+    final Stream<List<PurchaseDetails>> purchaseUpdated =
         _inAppPurchase.purchaseStream;
     _subscription = purchaseUpdated.listen(
       _onPurchaseUpdate,
       onDone: _updateStreamOnDone,
       onError: _updateStreamOnError,
     );
-    
+
     // Initialize store info for all devices
     initStoreInfo();
   }
 
   Future<void> _loadCredits() async {
     final prefs = await SharedPreferences.getInstance();
-    _credits = prefs.getInt('credits_balance') ?? 0;
+    _credits = prefs.getInt('credits_balance') ?? 0;  // Changed from 0 to 2
+
+    // Load redeemed referral codes
+    final redeemedCodesList = prefs.getStringList('redeemed_codes') ?? [];
+    _redeemedCodes = Set<String>.from(redeemedCodesList);
+
     notifyListeners();
   }
 
   Future<void> _saveCredits() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('credits_balance', _credits);
+  }
+
+  Future<void> _saveRedeemedCodes() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('redeemed_codes', _redeemedCodes.toList());
   }
 
   // Add credits to the user's balance
@@ -86,6 +103,42 @@ class PaymentService with ChangeNotifier {
     return false;
   }
 
+  // Apply referral/coupon code
+  Future<Map<String, dynamic>> applyReferralCode(String code) async {
+    // Normalize the code (trim whitespace, make case insensitive)
+    final normalizedCode = code.trim().toLowerCase();
+    final referralCodeLower = _referralCode.toLowerCase();
+
+    // Check if code has already been redeemed
+    if (_redeemedCodes.contains(normalizedCode)) {
+      return {
+        'success': false,
+        'message': 'This code has already been redeemed',
+      };
+    }
+
+    // Check if code is valid
+    if (normalizedCode == referralCodeLower) {
+      // Add referral credits
+      await addCredits(_referralCredits);
+
+      // Mark code as redeemed
+      _redeemedCodes.add(normalizedCode);
+      await _saveRedeemedCodes();
+
+      return {
+        'success': true,
+        'message': 'Successfully redeemed $_referralCredits credits!',
+        'creditsAdded': _referralCredits,
+      };
+    } else {
+      return {
+        'success': false,
+        'message': 'Invalid referral code',
+      };
+    }
+  }
+
   // Normal store initialization
   Future<void> initStoreInfo() async {
     // Check if we're using debug mode for emulators
@@ -96,7 +149,7 @@ class PaymentService with ChangeNotifier {
       notifyListeners();
       return;
     }
-    
+
     // Real device flow - check if billing is actually available
     final isAvailable = await _inAppPurchase.isAvailable();
     if (!isAvailable) {
@@ -112,9 +165,9 @@ class PaymentService with ChangeNotifier {
 
     // For Android: Configure the billing client
     if (Platform.isAndroid) {
-      final InAppPurchaseAndroidPlatformAddition androidAddition = 
-          _inAppPurchase.getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
-      
+      final InAppPurchaseAndroidPlatformAddition androidAddition =
+      _inAppPurchase.getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+
       // Set up billing client parameters if needed
       await androidAddition.isFeatureSupported(BillingClientFeature.subscriptions);
     }
@@ -128,9 +181,9 @@ class PaymentService with ChangeNotifier {
 
     try {
       // Query real product details from the store
-      final ProductDetailsResponse productDetailResponse = 
-          await _inAppPurchase.queryProductDetails(productIds);
-      
+      final ProductDetailsResponse productDetailResponse =
+      await _inAppPurchase.queryProductDetails(productIds);
+
       if (productDetailResponse.error != null) {
         _queryProductError = productDetailResponse.error!.message;
         _isAvailable = false;
@@ -156,10 +209,10 @@ class PaymentService with ChangeNotifier {
       _products = productDetailResponse.productDetails;
       _isAvailable = true;
       _loading = false;
-      
+
       // Check existing purchases
       _inAppPurchase.restorePurchases();
-      
+
       notifyListeners();
     } catch (e) {
       print('Error initializing store: $e');
@@ -194,8 +247,8 @@ class PaymentService with ChangeNotifier {
       ),
       ProductDetails(
         id: _credits100PackId,
-        title: '100 Credits + 20 Bonus',
-        description: 'Purchase 120 credits for animal identification',
+        title: '100 Credits',
+        description: 'Purchase 100 credits for animal identification',
         price: '\$6.99',
         rawPrice: 6.99,
         currencyCode: 'USD',
@@ -210,47 +263,47 @@ class PaymentService with ChangeNotifier {
       // Simulate purchase for debug mode
       _purchasePending = true;
       notifyListeners();
-      
+
       // Simulate network delay
       await Future.delayed(Duration(seconds: 2));
-      
+
       // Add credits based on the product purchased
       if (productDetails.id == _credits10PackId) {
         await addCredits(10);
       } else if (productDetails.id == _credits50PackId) {
         await addCredits(50);
       } else if (productDetails.id == _credits100PackId) {
-        await addCredits(120); // 100 + 20 bonus
+        await addCredits(100);
       }
-      
+
       _purchasePending = false;
       notifyListeners();
       return true;
     }
-    
+
     // Real purchase flow
     try {
       final PurchaseParam purchaseParam = PurchaseParam(
         productDetails: productDetails,
         applicationUserName: null,
       );
-      
+
       _purchasePending = true;
       notifyListeners();
-      
+
       // Start the purchase flow with actual Google Play billing
       print('Starting purchase for ${productDetails.id}');
       final bool purchaseStarted = await _inAppPurchase.buyConsumable(
         purchaseParam: purchaseParam,
       );
-      
+
       if (!purchaseStarted) {
         // If the purchase flow couldn't start
         _purchasePending = false;
         notifyListeners();
         return false;
       }
-      
+
       // The purchase has started - result will come through purchaseStream
       return true;
     } catch (e) {
@@ -264,23 +317,23 @@ class PaymentService with ChangeNotifier {
   // Handle purchase updates from Google Play
   void _onPurchaseUpdate(List<PurchaseDetails> purchaseDetailsList) async {
     print('Purchase update received: ${purchaseDetailsList.length} purchases');
-    
+
     for (final purchaseDetails in purchaseDetailsList) {
       print('Purchase status: ${purchaseDetails.status} for ${purchaseDetails.productID}');
-      
+
       switch (purchaseDetails.status) {
         case PurchaseStatus.pending:
           _purchasePending = true;
           notifyListeners();
           break;
-          
+
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
-          // Verify purchase if needed (with your backend)
-          // For security, you should verify purchases server-side
-          
+        // Verify purchase if needed (with your backend)
+        // For security, you should verify purchases server-side
+
           print('Purchase completed: ${purchaseDetails.productID}');
-          
+
           // Add credits based on the product purchased
           if (purchaseDetails.productID == _credits10PackId) {
             await addCredits(10);
@@ -289,26 +342,26 @@ class PaymentService with ChangeNotifier {
             await addCredits(50);
             print('Added 50 credits');
           } else if (purchaseDetails.productID == _credits100PackId) {
-            await addCredits(120); // 100 + 20 bonus
-            print('Added 120 credits');
+            await addCredits(100);
+            print('Added 100 credits');
           }
-          
+
           // Complete the transaction
           if (purchaseDetails.pendingCompletePurchase) {
             await _inAppPurchase.completePurchase(purchaseDetails);
             print('Purchase marked as complete');
           }
-          
+
           _purchasePending = false;
           notifyListeners();
           break;
-          
+
         case PurchaseStatus.error:
           print('Error purchasing: ${purchaseDetails.error}');
           _purchasePending = false;
           notifyListeners();
           break;
-          
+
         case PurchaseStatus.canceled:
           print('Purchase canceled');
           _purchasePending = false;
@@ -331,6 +384,15 @@ class PaymentService with ChangeNotifier {
   Future<void> addFreeCredits(int amount) async {
     if (kDebugMode) {
       await addCredits(amount);
+    }
+  }
+
+  // For debugging - reset redeemed codes
+  Future<void> resetRedeemedCodes() async {
+    if (kDebugMode) {
+      _redeemedCodes.clear();
+      await _saveRedeemedCodes();
+      notifyListeners();
     }
   }
 

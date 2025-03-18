@@ -7,7 +7,62 @@ import '../utils/theme.dart';
 import '../widgets/app_button.dart';
 import '../widgets/animated_gradient_button.dart';
 
-class CreditsScreen extends StatelessWidget {
+class CreditsScreen extends StatefulWidget {
+  @override
+  _CreditsScreenState createState() => _CreditsScreenState();
+}
+
+class _CreditsScreenState extends State<CreditsScreen> {
+  // Controller for the coupon code text field
+  final TextEditingController _couponController = TextEditingController();
+  bool _isApplyingCoupon = false;
+  String? _couponMessage;
+  bool _couponSuccess = false;
+
+  @override
+  void dispose() {
+    _couponController.dispose();
+    super.dispose();
+  }
+
+  // Apply coupon code
+  Future<void> _applyCouponCode(PaymentService paymentService) async {
+    final code = _couponController.text.trim();
+    if (code.isEmpty) {
+      setState(() {
+        _couponMessage = 'Please enter a coupon code';
+        _couponSuccess = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isApplyingCoupon = true;
+      _couponMessage = null;
+    });
+
+    try {
+      final result = await paymentService.applyReferralCode(code);
+
+      setState(() {
+        _isApplyingCoupon = false;
+        _couponMessage = result['message'];
+        _couponSuccess = result['success'];
+
+        // Clear input if successful
+        if (result['success']) {
+          _couponController.clear();
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _isApplyingCoupon = false;
+        _couponMessage = 'Error applying coupon: $e';
+        _couponSuccess = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -129,7 +184,7 @@ class CreditsScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  
+
                   // Main content
                   SingleChildScrollView(
                     physics: BouncingScrollPhysics(),
@@ -141,7 +196,11 @@ class CreditsScreen extends StatelessWidget {
                           // Current credits display
                           _buildCurrentCreditsCard(context, paymentService),
                           SizedBox(height: 24),
-                          
+
+                          // Coupon code section
+                          _buildCouponCodeCard(context, paymentService),
+                          SizedBox(height: 24),
+
                           // Main content card
                           Container(
                             decoration: BoxDecoration(
@@ -195,33 +254,33 @@ class CreditsScreen extends StatelessWidget {
                                       ],
                                     ),
                                   ),
-                                  
+
                                   // Credit pack options from the store
                                   Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                     child: Column(
-                                      children: paymentService.products.map((product) => 
-                                        _buildCreditPackOption(
-                                          context,
-                                          product: product,
-                                          paymentService: paymentService,
-                                        ),
+                                      children: paymentService.products.map((product) =>
+                                          _buildCreditPackOption(
+                                            context,
+                                            product: product,
+                                            paymentService: paymentService,
+                                          ),
                                       ).toList(),
                                     ),
                                   ),
-                                  
+
                                   // Credit usage information
                                   _buildCreditUsageInfo(context),
-                                  
+
                                   // Spacer
                                   SizedBox(height: 16),
                                 ],
                               ),
                             ),
                           ),
-                          
+
                           // Debug buttons in debug mode ONLY
-                          if (kDebugMode) 
+                          if (kDebugMode)
                             Padding(
                               padding: const EdgeInsets.only(top: 24),
                               child: _buildDebugControls(context, paymentService),
@@ -239,13 +298,152 @@ class CreditsScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildCouponCodeCard(BuildContext context, PaymentService paymentService) {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.card_giftcard,
+                color: AppTheme.primary,
+                size: 24,
+              ),
+              SizedBox(width: 12),
+              Text(
+                'Promo Code',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+
+          // Coupon code input
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Text field
+              Expanded(
+                child: TextField(
+                  controller: _couponController,
+                  decoration: InputDecoration(
+                    hintText: 'Enter referral code',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    isDense: true,
+                  ),
+                  style: TextStyle(fontSize: 16),
+                  enabled: !_isApplyingCoupon,
+                ),
+              ),
+
+              // Apply button
+              SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: _isApplyingCoupon
+                    ? null
+                    : () => _applyCouponCode(paymentService),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  minimumSize: Size(0, 48),
+                ),
+                child: _isApplyingCoupon
+                    ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    strokeWidth: 2,
+                  ),
+                )
+                    : Text('Apply'),
+              ),
+            ],
+          ),
+
+          // Feedback message
+          if (_couponMessage != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _couponSuccess
+                      ? Colors.green.withOpacity(0.1)
+                      : Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: _couponSuccess
+                        ? Colors.green.withOpacity(0.3)
+                        : Colors.red.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _couponSuccess
+                          ? Icons.check_circle
+                          : Icons.error_outline,
+                      color: _couponSuccess
+                          ? Colors.green
+                          : Colors.red,
+                      size: 20,
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _couponMessage!,
+                        style: TextStyle(
+                          color: _couponSuccess
+                              ? Colors.green
+                              : Colors.red,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildErrorState(
-    BuildContext context, 
-    PaymentService paymentService, 
-    {required String title, 
-    required String message, 
-    required IconData icon}
-  ) {
+      BuildContext context,
+      PaymentService paymentService,
+      {required String title,
+        required String message,
+        required IconData icon}
+      ) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -337,30 +535,30 @@ class CreditsScreen extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: paymentService.credits > 0 
-                      ? Colors.green.withOpacity(0.1) 
+                  color: paymentService.credits > 0
+                      ? Colors.green.withOpacity(0.1)
                       : Colors.orange.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      paymentService.credits > 0 
-                          ? Icons.check_circle 
+                      paymentService.credits > 0
+                          ? Icons.check_circle
                           : Icons.info_outline,
-                      color: paymentService.credits > 0 
-                          ? Colors.green 
+                      color: paymentService.credits > 0
+                          ? Colors.green
                           : Colors.orange,
                       size: 16,
                     ),
                     SizedBox(width: 4),
                     Text(
-                      paymentService.credits > 0 
-                          ? 'Active' 
+                      paymentService.credits > 0
+                          ? 'Active'
                           : 'Empty',
                       style: TextStyle(
-                        color: paymentService.credits > 0 
-                            ? Colors.green 
+                        color: paymentService.credits > 0
+                            ? Colors.green
                             : Colors.orange,
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
@@ -433,17 +631,17 @@ class CreditsScreen extends StatelessWidget {
   }
 
   Widget _buildCreditPackOption(
-    BuildContext context, {
-    required ProductDetails product,
-    required PaymentService paymentService,
-  }) {
+      BuildContext context, {
+        required ProductDetails product,
+        required PaymentService paymentService,
+      }) {
     // Extract the credit amount from product ID or title
     String creditsText = '10 Credits';
     int creditAmount = 10;
     bool isBestValue = false;
     bool isPopular = false;
     Color accentColor = AppTheme.primary;
-    
+
     // Parse credit amounts from product IDs
     if (product.id.contains('10_credits')) {
       creditsText = '10 Credits';
@@ -454,24 +652,18 @@ class CreditsScreen extends StatelessWidget {
       isPopular = true;
       accentColor = Colors.blue;
     } else if (product.id.contains('100_credits')) {
-      creditsText = '100 + 20 Bonus Credits';
-      creditAmount = 120;
+      creditsText = '100 Credits';
+      creditAmount = 100;
       isBestValue = true;
       accentColor = Colors.amber;
     } else {
       // Default display for products without recognized IDs
       creditsText = product.title;
     }
-    
+
     // Calculate price per credit
     double pricePerCredit = product.rawPrice / creditAmount;
     String savingsText = '';
-    
-    if (product.id.contains('50_credits')) {
-      savingsText = 'Save 20%';
-    } else if (product.id.contains('100_credits')) {
-      savingsText = 'Save 40%';
-    }
 
     return Container(
       margin: EdgeInsets.symmetric(vertical: 8),
@@ -479,8 +671,8 @@ class CreditsScreen extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: (isBestValue || isPopular) 
-              ? accentColor.withOpacity(0.5) 
+          color: (isBestValue || isPopular)
+              ? accentColor.withOpacity(0.5)
               : Colors.grey.shade200,
           width: (isBestValue || isPopular) ? 2 : 1,
         ),
@@ -580,7 +772,7 @@ class CreditsScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  
+
                   // Right side - price and button
                   Expanded(
                     flex: 1,
@@ -663,21 +855,21 @@ class CreditsScreen extends StatelessWidget {
           ),
           SizedBox(height: 12),
           _buildInfoItem(
-            context, 
-            icon: Icons.check_circle_outline,
-            text: 'Each animal identification costs 1 credit'
+              context,
+              icon: Icons.check_circle_outline,
+              text: 'Each animal identification costs 1 credit'
           ),
           SizedBox(height: 8),
           _buildInfoItem(
-            context, 
-            icon: Icons.check_circle_outline,
-            text: 'Credits never expire'
+              context,
+              icon: Icons.check_circle_outline,
+              text: 'Credits never expire'
           ),
           SizedBox(height: 8),
           _buildInfoItem(
-            context, 
-            icon: Icons.check_circle_outline,
-            text: 'Larger packs offer better value'
+              context,
+              icon: Icons.check_circle_outline,
+              text: 'Larger packs offer better value'
           ),
         ],
       ),
@@ -689,7 +881,7 @@ class CreditsScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(
-          icon, 
+          icon,
           color: Colors.green,
           size: 18,
         ),
@@ -760,6 +952,16 @@ class CreditsScreen extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          SizedBox(height: 8),
+          // Added debug button to reset redeemed coupons
+          OutlinedButton(
+            onPressed: () => paymentService.resetRedeemedCodes(),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.purple,
+              side: BorderSide(color: Colors.purple.withOpacity(0.5)),
+            ),
+            child: Text('Reset Redeemed Coupons'),
           ),
         ],
       ),
