@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+// Deprecated by Google, shutdown date 1 June 2026 (already past). Not
+// changed here: picking the replacement needs a live API key to check
+// which models are actually available, and there is no live key yet.
+const String kGeminiModel = 'gemini-2.0-flash';
+
 class AppColors {
   static const primary = Color(0xFF4CAF50);
   static const secondary = Color(0xFF2196F3);

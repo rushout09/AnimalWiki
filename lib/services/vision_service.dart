@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import '../utils/constants.dart';
 
 class VisionService {
   final String apiKey;
@@ -26,7 +27,7 @@ Return ONLY a JSON object with this format:
       ''';
 
       final url = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey'
+        'https://generativelanguage.googleapis.com/v1beta/models/$kGeminiModel:generateContent?key=$apiKey'
       );
       
       final response = await http.post(
@@ -144,7 +145,7 @@ Follow the exact format above with no deviations. If you are uncertain about any
 
       // Prepare the request to Gemini API
       final url = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey'
+        'https://generativelanguage.googleapis.com/v1beta/models/$kGeminiModel:generateContent?key=$apiKey'
       );
       
       final response = await http.post(

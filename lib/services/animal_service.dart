@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import '../models/animal_model.dart';
+import '../utils/constants.dart';
 
 class AnimalService {
   final String apiKey;
@@ -79,7 +80,7 @@ Return ONLY a valid JSON object with the following fields (do not include any ot
 
       // Use Gemini to get detailed information about the animal
       final url = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey'
+        'https://generativelanguage.googleapis.com/v1beta/models/$kGeminiModel:generateContent?key=$apiKey'
       );
       
       final response = await http.post(
