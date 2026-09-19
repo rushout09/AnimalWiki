@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import '../services/vision_service.dart';
 import '../services/animal_service.dart';
@@ -65,8 +64,7 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
       _loadingSubMessage = 'Identifying what\'s in the photo';
     });
 
-    final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
-    final visionService = VisionService(apiKey: apiKey);
+    final visionService = VisionService();
 
     try {
       // Add artificial delay stages for better UX
@@ -106,7 +104,7 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
       });
 
       // Get detailed information about the animal
-      final animalService = AnimalService(apiKey: apiKey);
+      final animalService = AnimalService();
       final animal = await animalService.getAnimalInfo(identification);
 
       await Future.delayed(Duration(milliseconds: 800));

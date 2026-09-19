@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 // a stored 0, is never overwritten by this default.
 const int kFreeStarterCredits = 2;
 
-// Deprecated by Google, shutdown date 1 June 2026 (already past). Not
-// changed here: picking the replacement needs a live API key to check
-// which models are actually available, and there is no live key yet.
-const String kGeminiModel = 'gemini-2.0-flash';
+// The proxy that holds the Gemini key server-side and runs the prompts.
+// See proxy/README.md. Overridable at build time with
+// --dart-define=PROXY_BASE_URL=...
+const String kProxyBaseUrl = String.fromEnvironment(
+  'PROXY_BASE_URL',
+  defaultValue: 'https://animalwiki-proxy-912119732546.us-central1.run.app',
+);
 
 class AppColors {
   static const primary = Color(0xFF4CAF50);
