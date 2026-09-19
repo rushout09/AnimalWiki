@@ -1,0 +1,14 @@
+{
+  "name": "animalwiki-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Thin server-side proxy so the Animal Identifier app never ships a Gemini key.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test"
+  }
+}
