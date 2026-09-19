@@ -6,6 +6,8 @@
 
 Flutter app (package `animal_identifier`, Dart SDK ^3.5.4) that identifies animals from the camera. The README is the stock Flutter template and documents nothing project-specific.
 
+Published on Google Play as Animal Identifier (`info.animalidentifier`) under the SEOExpert AI developer account; the package id is set in `android/app/build.gradle`.
+
 ## Commands
 - Install: `flutter pub get`
 - Run: `flutter run`
