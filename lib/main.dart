@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
 import 'utils/theme.dart';
@@ -14,14 +13,6 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  
-  // Load environment variables with fallback for missing .env file
-  try {
-    await dotenv.load(fileName: '.env');
-    print('Environment variables loaded successfully');
-  } catch (e) {
-    print('Failed to load environment variables: $e');
-  }
   
   runApp(MyApp());
 }
