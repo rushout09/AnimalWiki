@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:animal_identifier/screens/home_screen.dart';
 import 'package:animal_identifier/services/payment_service.dart';
+import 'package:animal_identifier/utils/constants.dart';
 
 void main() {
   setUp(() {
@@ -23,6 +24,6 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('0'), findsOneWidget);
+    expect(find.text('$kFreeStarterCredits'), findsOneWidget);
   });
 }

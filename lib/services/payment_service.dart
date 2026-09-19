@@ -5,6 +5,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:in_app_purchase_android/billing_client_wrappers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/constants.dart';
 
 class PaymentService with ChangeNotifier {
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
@@ -66,7 +67,9 @@ class PaymentService with ChangeNotifier {
 
   Future<void> _loadCredits() async {
     final prefs = await SharedPreferences.getInstance();
-    _credits = prefs.getInt('credits_balance') ?? 0;  // Changed from 0 to 2
+    // A stored value, including a stored 0, is kept as is; only a missing
+    // key (a genuinely new install) gets the starter grant.
+    _credits = prefs.getInt('credits_balance') ?? kFreeStarterCredits;
 
     // Load redeemed referral codes
     final redeemedCodesList = prefs.getStringList('redeemed_codes') ?? [];

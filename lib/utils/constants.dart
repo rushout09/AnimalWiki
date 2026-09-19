@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+// A new install starts with this many credits. A stored balance, including
+// a stored 0, is never overwritten by this default.
+const int kFreeStarterCredits = 2;
+
 // Deprecated by Google, shutdown date 1 June 2026 (already past). Not
 // changed here: picking the replacement needs a live API key to check
 // which models are actually available, and there is no live key yet.

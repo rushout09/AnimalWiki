@@ -5,22 +5,51 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:animal_identifier/services/payment_service.dart';
+import 'package:animal_identifier/utils/constants.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(() {
-    SharedPreferences.setMockInitialValues({});
-  });
+  group('starter credits', () {
+    test('nothing stored gives kFreeStarterCredits', () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = PaymentService();
+      await Future<void>.delayed(Duration.zero);
+      expect(service.credits, kFreeStarterCredits);
+    });
 
-  group('credits', () {
-    test('a fresh install starts with 0 credits', () async {
+    test('a stored 0 stays 0, never re-granted', () async {
+      SharedPreferences.setMockInitialValues({'credits_balance': 0});
       final service = PaymentService();
       await Future<void>.delayed(Duration.zero);
       expect(service.credits, 0);
     });
 
+    test('a stored 7 stays 7', () async {
+      SharedPreferences.setMockInitialValues({'credits_balance': 7});
+      final service = PaymentService();
+      await Future<void>.delayed(Duration.zero);
+      expect(service.credits, 7);
+    });
+
+    test('spending one of the free credits persists 1', () async {
+      SharedPreferences.setMockInitialValues({});
+      final first = PaymentService();
+      await Future<void>.delayed(Duration.zero);
+
+      final spent = await first.useCredits(1);
+      expect(spent, isTrue);
+      expect(first.credits, kFreeStarterCredits - 1);
+
+      final second = PaymentService();
+      await Future<void>.delayed(Duration.zero);
+      expect(second.credits, kFreeStarterCredits - 1);
+    });
+  });
+
+  group('credits', () {
     test('useCredits deducts and persists when the balance covers it', () async {
+      SharedPreferences.setMockInitialValues({'credits_balance': 0});
       final service = PaymentService();
       await Future<void>.delayed(Duration.zero);
       await service.addCredits(3);
@@ -32,6 +61,7 @@ void main() {
     });
 
     test('useCredits leaves the balance untouched when it is insufficient', () async {
+      SharedPreferences.setMockInitialValues({'credits_balance': 0});
       final service = PaymentService();
       await Future<void>.delayed(Duration.zero);
 
@@ -42,6 +72,7 @@ void main() {
     });
 
     test('a balance of 0 stays 0 across a fresh PaymentService instance', () async {
+      SharedPreferences.setMockInitialValues({'credits_balance': 0});
       final first = PaymentService();
       await Future<void>.delayed(Duration.zero);
       await first.addCredits(1);
@@ -56,6 +87,7 @@ void main() {
 
   group('referral codes', () {
     test('a valid code grants credits once', () async {
+      SharedPreferences.setMockInitialValues({'credits_balance': 0});
       final service = PaymentService();
       await Future<void>.delayed(Duration.zero);
 
@@ -66,6 +98,7 @@ void main() {
     });
 
     test('the same code cannot be redeemed twice', () async {
+      SharedPreferences.setMockInitialValues({'credits_balance': 0});
       final service = PaymentService();
       await Future<void>.delayed(Duration.zero);
       await service.applyReferralCode('review2025');
@@ -77,6 +110,7 @@ void main() {
     });
 
     test('an unknown code is rejected', () async {
+      SharedPreferences.setMockInitialValues({'credits_balance': 0});
       final service = PaymentService();
       await Future<void>.delayed(Duration.zero);
 
