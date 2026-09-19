@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import '../utils/constants.dart';
+import '../utils/app_config.dart';
 
 class VisionService {
   final http.Client _client;

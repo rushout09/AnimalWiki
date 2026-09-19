@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/animal_model.dart';
-import '../utils/constants.dart';
+import '../utils/app_config.dart';
 
 class AnimalService {
   final http.Client _client;
