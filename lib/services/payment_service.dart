@@ -150,8 +150,22 @@ class PaymentService with ChangeNotifier {
       return;
     }
 
-    // Real device flow - check if billing is actually available
-    final isAvailable = await _inAppPurchase.isAvailable();
+    // Real device flow - check if billing is actually available. This can
+    // throw (no Play Store, no connectivity, no platform implementation)
+    // instead of just returning false, so it must be caught here rather
+    // than left to crash the fire-and-forget call from the constructor.
+    bool isAvailable;
+    try {
+      isAvailable = await _inAppPurchase.isAvailable();
+      if (isAvailable && Platform.isAndroid) {
+        final InAppPurchaseAndroidPlatformAddition androidAddition =
+        _inAppPurchase.getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+        await androidAddition.isFeatureSupported(BillingClientFeature.subscriptions);
+      }
+    } catch (e) {
+      isAvailable = false;
+    }
+
     if (!isAvailable) {
       _isAvailable = false;
       _products = [];
@@ -161,15 +175,6 @@ class PaymentService with ChangeNotifier {
       _queryProductError = 'Store not available on this device';
       notifyListeners();
       return;
-    }
-
-    // For Android: Configure the billing client
-    if (Platform.isAndroid) {
-      final InAppPurchaseAndroidPlatformAddition androidAddition =
-      _inAppPurchase.getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
-
-      // Set up billing client parameters if needed
-      await androidAddition.isFeatureSupported(BillingClientFeature.subscriptions);
     }
 
     // Set up product identifiers for credit packs
