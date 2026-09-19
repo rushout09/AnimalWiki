@@ -5,10 +5,16 @@ import '../utils/constants.dart';
 
 class AnimalService {
   final http.Client _client;
+  final String _baseUrl;
+  final Duration _timeout;
 
-  AnimalService({http.Client? httpClient}) : _client = httpClient ?? http.Client();
-
-  static const Duration _timeout = Duration(seconds: 60);
+  AnimalService({
+    http.Client? httpClient,
+    String baseUrl = kProxyBaseUrl,
+    Duration timeout = const Duration(seconds: 60),
+  })  : _client = httpClient ?? http.Client(),
+        _baseUrl = baseUrl,
+        _timeout = timeout;
 
   // Letters (any script), digits, spaces and a handful of punctuation marks,
   // matching the proxy's own NAME_RE in proxy/src/handler.mjs.
@@ -16,7 +22,7 @@ class AnimalService {
   static const int _maxNameChars = 120;
 
   Future<Animal> getAnimalInfo(Map<String, dynamic> identificationData) async {
-    if (kProxyBaseUrl.isEmpty) {
+    if (_baseUrl.isEmpty) {
       throw Exception('No proxy base URL is configured.');
     }
 
@@ -34,7 +40,7 @@ class AnimalService {
     try {
       response = await _client
           .post(
-            Uri.parse('$kProxyBaseUrl/v1/info'),
+            Uri.parse('$_baseUrl/v1/info'),
             headers: {'content-type': 'application/json'},
             body: jsonEncode({
               'species': species,

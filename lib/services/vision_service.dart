@@ -5,13 +5,19 @@ import '../utils/constants.dart';
 
 class VisionService {
   final http.Client _client;
+  final String _baseUrl;
+  final Duration _timeout;
 
-  VisionService({http.Client? httpClient}) : _client = httpClient ?? http.Client();
-
-  static const Duration _timeout = Duration(seconds: 60);
+  VisionService({
+    http.Client? httpClient,
+    String baseUrl = kProxyBaseUrl,
+    Duration timeout = const Duration(seconds: 60),
+  })  : _client = httpClient ?? http.Client(),
+        _baseUrl = baseUrl,
+        _timeout = timeout;
 
   Future<Map<String, dynamic>> analyzeImage(File imageFile) async {
-    if (kProxyBaseUrl.isEmpty) {
+    if (_baseUrl.isEmpty) {
       throw Exception('No proxy base URL is configured.');
     }
 
@@ -72,7 +78,7 @@ class VisionService {
     try {
       response = await _client
           .post(
-            Uri.parse('$kProxyBaseUrl/v1/$route'),
+            Uri.parse('$_baseUrl/v1/$route'),
             headers: {'content-type': 'application/json'},
             body: jsonEncode(body),
           )
