@@ -1,11 +1,10 @@
 import 'dart:io';
-import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
 import '../services/vision_service.dart';
 import '../services/animal_service.dart';
-import '../models/animal_model.dart';
+import '../services/payment_service.dart';
 import '../widgets/animated_loading.dart';
 import '../utils/theme.dart';
 import 'results_screen.dart';
@@ -65,193 +64,98 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
       _loadingSubMessage = 'Identifying what\'s in the photo';
     });
 
+    final visionService = VisionService();
+
     try {
-      final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
-      print('Using API key: $apiKey');
-      
-      final visionService = VisionService(apiKey: apiKey);
-      
-      // For debugging - create a minimal animal model in case of API issues
-      var fallbackAnimal = Animal(
-        id: 'fallback-1',
-        name: 'Bengal Tiger',
-        species: 'Panthera tigris tigris',
-        breed: 'Bengal',
-        description: 'The Bengal tiger is a tiger subspecies native to the Indian subcontinent. It is the most numerous tiger subspecies, and is threatened by poaching, loss, and fragmentation of habitat. It is listed as Endangered on the IUCN Red List.',
-        habitat: 'Dense forests, mangrove swamps, and grasslands across India, Bangladesh, Nepal, and Bhutan',
-        diet: 'Carnivore - primarily deer, wild boar, and other large mammals',
-        lifespan: '8-10 years in the wild, up to 18 in captivity',
-        imageUrl: '',
-        estimatedAge: '5-7 years',
-        estimatedWeightKg: 220,
-        healthStatus: 'Good',
-        activityLevel: 'Active',
-        mood: 'Alert',
-        rarity: 'Endangered',
-        notableFeatures: [
-          'Distinctive striped pattern', 
-          'Muscular build', 
-          'Healthy coat'
-        ],
-        taxonomy: {
-          'kingdom': 'Animalia',
-          'phylum': 'Chordata',
-          'class': 'Mammalia',
-          'order': 'Carnivora',
-          'family': 'Felidae',
-          'genus': 'Panthera'
-        },
-        conservation: {
-          'status': 'EN',
-          'population_trend': 'Decreasing',
-          'threats': [
-            'Habitat loss and fragmentation',
-            'Poaching for traditional medicine',
-            'Human-wildlife conflict'
-          ]
-        },
-        behavior: {
-          'activity_pattern': 'Nocturnal',
-          'social_structure': 'Solitary',
-          'personality_traits': [
-            'Territorial', 
-            'Powerful', 
-            'Stealthy', 
-            'Intelligent'
-          ]
-        },
-        interestingFacts: [
-          'Bengal tigers can consume up to 40 kg in a single meal',
-          'Each tiger has a unique stripe pattern like a fingerprint',
-          'Tigers can leap distances of over 6 meters'
-        ],
-      );
-      
-      try {
-        // Add artificial delay stages for better UX
-        await Future.delayed(Duration(seconds: 1));
-        
-        // First, analyze the image to check if it contains a human or animal
-        setState(() {
-          _loadingMessage = 'Analyzing subject...';
-          _loadingSubMessage = 'Determining what\'s in the image';
-        });
-        
-        final analysisResult = await visionService.analyzeImage(widget.imageFile);
-        
-        // If a human was detected
-        if (analysisResult['is_human'] == true) {
-          // Show error and return to previous screen
-          if (mounted) {
-            await Future.delayed(Duration(milliseconds: 500));
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(analysisResult['message']),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: 5),
-                action: SnackBarAction(
-                  label: 'OK',
-                  textColor: Colors.white,
-                  onPressed: () {},
-                ),
-              ),
-            );
-            Navigator.pop(context);
-          }
-          return;
-        }
-        
-        // If no animal was detected
-        if (analysisResult['is_animal'] == false) {
-          if (mounted) {
-            await Future.delayed(Duration(milliseconds: 500));
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(analysisResult['message']),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: 5),
-                action: SnackBarAction(
-                  label: 'OK',
-                  textColor: Colors.white,
-                  onPressed: () {},
-                ),
-              ),
-            );
-            Navigator.pop(context);
-          }
-          return;
-        }
-        
-        // Proceed with animal identification
-        setState(() {
-          _loadingMessage = 'Examining details...';
-          _loadingSubMessage = 'Identifying species and characteristics';
-        });
-        
-        final identification = analysisResult['animal_data'];
-        print('Animal data: $identification');
+      // Add artificial delay stages for better UX
+      await Future.delayed(Duration(seconds: 1));
 
-        await Future.delayed(Duration(milliseconds: 800));
-        
-        setState(() {
-          _loadingMessage = 'Retrieving information...';
-          _loadingSubMessage = 'Finding facts about this animal';
-        });
+      // First, analyze the image to check if it contains a human or animal
+      setState(() {
+        _loadingMessage = 'Analyzing subject...';
+        _loadingSubMessage = 'Determining what\'s in the image';
+      });
 
-        // Get detailed information about the animal
-        final animalService = AnimalService(apiKey: apiKey);
-        final animal = await animalService.getAnimalInfo(identification);
+      final analysisResult = await visionService.analyzeImage(widget.imageFile);
 
-        await Future.delayed(Duration(milliseconds: 800));
-        
-        setState(() {
-          _loadingMessage = 'Preparing results...';
-          _loadingSubMessage = 'Almost done!';
-        });
-
-        await Future.delayed(Duration(milliseconds: 500));
-
-        // Navigate to results screen
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ResultsScreen(
-                animal: animal,
-                imageFile: widget.imageFile,
-              ),
-            ),
-          );
-        }
-      } catch (e) {
-        print('Error during animal info retrieval: $e');
-        // Use fallback animal if API fails
-        await Future.delayed(Duration(milliseconds: 800));
-        
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ResultsScreen(
-                animal: fallbackAnimal,
-                imageFile: widget.imageFile,
-              ),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      print('Critical error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+      // If a human was detected, or no animal was detected: not a failure,
+      // just not identifiable. No credit is spent either way.
+      if (analysisResult['is_human'] == true || analysisResult['is_animal'] == false) {
+        await _showMessageAndGoBack(
+          analysisResult['message'],
+          Colors.orange,
         );
-        Navigator.pop(context);
+        return;
       }
+
+      // Proceed with animal identification
+      setState(() {
+        _loadingMessage = 'Examining details...';
+        _loadingSubMessage = 'Identifying species and characteristics';
+      });
+
+      final identification = analysisResult['animal_data'];
+
+      await Future.delayed(Duration(milliseconds: 800));
+
+      setState(() {
+        _loadingMessage = 'Retrieving information...';
+        _loadingSubMessage = 'Finding facts about this animal';
+      });
+
+      // Get detailed information about the animal
+      final animalService = AnimalService();
+      final animal = await animalService.getAnimalInfo(identification);
+
+      await Future.delayed(Duration(milliseconds: 800));
+
+      setState(() {
+        _loadingMessage = 'Preparing results...';
+        _loadingSubMessage = 'Almost done!';
+      });
+
+      await Future.delayed(Duration(milliseconds: 500));
+
+      if (!mounted) return;
+
+      // Only spend a credit once identification has actually succeeded.
+      await Provider.of<PaymentService>(context, listen: false).useCredits(1);
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ResultsScreen(
+            animal: animal,
+            imageFile: widget.imageFile,
+          ),
+        ),
+      );
+    } catch (e) {
+      await _showMessageAndGoBack(
+        'Could not identify this photo. You were not charged. Please try again.',
+        Colors.red,
+      );
     }
+  }
+
+  Future<void> _showMessageAndGoBack(String message, Color color) async {
+    if (!mounted) return;
+    await Future.delayed(Duration(milliseconds: 500));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        duration: Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: Colors.white,
+          onPressed: () {},
+        ),
+      ),
+    );
+    Navigator.pop(context);
   }
 
   @override

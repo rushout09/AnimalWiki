@@ -5,6 +5,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:in_app_purchase_android/billing_client_wrappers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/constants.dart';
 
 class PaymentService with ChangeNotifier {
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
@@ -66,7 +67,9 @@ class PaymentService with ChangeNotifier {
 
   Future<void> _loadCredits() async {
     final prefs = await SharedPreferences.getInstance();
-    _credits = prefs.getInt('credits_balance') ?? 0;  // Changed from 0 to 2
+    // A stored value, including a stored 0, is kept as is; only a missing
+    // key (a genuinely new install) gets the starter grant.
+    _credits = prefs.getInt('credits_balance') ?? kFreeStarterCredits;
 
     // Load redeemed referral codes
     final redeemedCodesList = prefs.getStringList('redeemed_codes') ?? [];
@@ -150,8 +153,22 @@ class PaymentService with ChangeNotifier {
       return;
     }
 
-    // Real device flow - check if billing is actually available
-    final isAvailable = await _inAppPurchase.isAvailable();
+    // Real device flow - check if billing is actually available. This can
+    // throw (no Play Store, no connectivity, no platform implementation)
+    // instead of just returning false, so it must be caught here rather
+    // than left to crash the fire-and-forget call from the constructor.
+    bool isAvailable;
+    try {
+      isAvailable = await _inAppPurchase.isAvailable();
+      if (isAvailable && Platform.isAndroid) {
+        final InAppPurchaseAndroidPlatformAddition androidAddition =
+        _inAppPurchase.getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+        await androidAddition.isFeatureSupported(BillingClientFeature.subscriptions);
+      }
+    } catch (e) {
+      isAvailable = false;
+    }
+
     if (!isAvailable) {
       _isAvailable = false;
       _products = [];
@@ -161,15 +178,6 @@ class PaymentService with ChangeNotifier {
       _queryProductError = 'Store not available on this device';
       notifyListeners();
       return;
-    }
-
-    // For Android: Configure the billing client
-    if (Platform.isAndroid) {
-      final InAppPurchaseAndroidPlatformAddition androidAddition =
-      _inAppPurchase.getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
-
-      // Set up billing client parameters if needed
-      await androidAddition.isFeatureSupported(BillingClientFeature.subscriptions);
     }
 
     // Set up product identifiers for credit packs

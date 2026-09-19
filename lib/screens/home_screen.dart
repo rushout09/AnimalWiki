@@ -348,9 +348,8 @@ class HomeScreen extends StatelessWidget {
     );
 
     if (pickedFile != null) {
-      // Use 1 credit when starting the identification
-      await paymentService.useCredits(1);
-      
+      // Credit is spent only after a successful identification, in
+      // CameraScreen, so nothing is charged here.
       Navigator.push(
         context,
         MaterialPageRoute(
